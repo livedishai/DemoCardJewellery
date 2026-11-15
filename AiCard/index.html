@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>JEWELS-AI | Live Drive AR</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --deep: #130821;
+      --deep-2: #1f0d33;
+      --brand-purple: #5E0F8B;
+      --brand-purple-dark: #2c0a49;
+      --gold: #D4AF37;
+      --gold-soft: #F0D687;
+      --cream: #F5EFE6;
+      --cream-dim: rgba(245, 239, 230, 0.62);
+      --glass: rgba(245, 239, 230, 0.08);
+      --glass-border: rgba(212, 175, 55, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      background: var(--deep);
+      overflow: hidden;
+      font-family: 'Manrope', sans-serif;
+      color: var(--cream);
+      -webkit-tap-highlight-color: transparent;
+      height: 100%;
+    }
+
+    body.catalog-open a-scene,
+    body.catalog-open #rawCameraFeed {
+      filter: brightness(0.25) saturate(0.7) blur(10px);
+      transition: filter 0.6s ease;
+      pointer-events: none;
+    }
+    a-scene { transition: filter 0.4s ease; }
+
+    #rawCameraFeed {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: 0; background: #000;
+      transition: filter 0.4s ease;
+    }
+
+    #blackCurtain {
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 50% 40%, var(--deep-2) 0%, var(--deep) 70%);
+      z-index: 99999;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      gap: 22px; transition: opacity 0.6s ease; pointer-events: none;
+    }
+
+    .gem-loader { width: 56px; height: 56px; animation: gemSpin 2.6s ease-in-out infinite; }
+    .gem-loader path {
+      fill: none; stroke: var(--gold); stroke-width: 1.4; stroke-linejoin: round;
+      filter: drop-shadow(0 0 6px rgba(212,175,55,0.55));
+    }
+    @keyframes gemSpin {
+      0%   { transform: rotate(0deg) scale(1); }
+      50%  { transform: rotate(180deg) scale(1.08); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    #loader {
+      font-family: 'Cormorant Garamond', serif; font-weight: 500; font-style: italic;
+      font-size: 19px; letter-spacing: 2px; color: var(--cream); text-align: center;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    #loader span {
+      display: block; font-family: 'Manrope', sans-serif; font-style: normal;
+      font-size: 10px; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--gold-soft); margin-top: 6px;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+    #brandMark {
+      position: fixed; top: max(18px, env(safe-area-inset-top)); left: 50%;
+      transform: translateX(-50%); z-index: 500;
+      display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+      background: var(--glass); border: 1px solid var(--glass-border); border-radius: 999px;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-family: 'Cormorant Garamond', serif; font-weight: 600; font-size: 15px;
+      letter-spacing: 3px; color: var(--gold-soft); pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    #brandMark::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold); box-shadow: 0 0 8px var(--gold);
+    }
+
+    #scanHint {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 400; width: min(64vw, 260px); aspect-ratio: 1;
+      transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none;
+    }
+    #scanHint .corner { position: absolute; width: 30px; height: 30px; border: 2px solid var(--gold); opacity: 0.85; }
+    #scanHint .tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+    #scanHint .tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+    #scanHint .bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+    #scanHint .br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+    #scanHint .scanline {
+      position: absolute; left: 4px; right: 4px; height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      box-shadow: 0 0 8px var(--gold); animation: scanMove 2.2s ease-in-out infinite;
+    }
+    @keyframes scanMove {
+      0%   { top: 6%; opacity: 0; } 10% { opacity: 1; }
+      90%  { opacity: 1; } 100% { top: 92%; opacity: 0; }
+    }
+    #scanHint p {
+      position: absolute; bottom: -34px; width: 100%; text-align: center;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--cream-dim);
+    }
+    body.found #scanHint, body.found #brandMark { opacity: 0; }
+
+    /* ---------- Buttons ---------- */
+    .plan-button {
+      position: relative; overflow: hidden; padding: 13px 24px;
+      font-family: 'Manrope', sans-serif; font-size: 13px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      border: 1px solid var(--glass-border); border-radius: 999px;
+      background: linear-gradient(135deg, var(--brand-purple) 0%, var(--brand-purple-dark) 100%);
+      color: var(--cream); cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      transition: transform 0.15s ease, opacity 0.4s ease; white-space: nowrap;
+    }
+    .plan-button:active { transform: scale(0.96); }
+
+    #openCatalogBtn {
+      position: fixed; bottom: max(25px, env(safe-area-inset-bottom)); left: 20px; z-index: 1000;
+      background: rgba(19, 8, 33, 0.85); border: 1px solid var(--gold); color: var(--gold-soft);
+      display: flex; align-items: center; gap: 8px;
+    }
+    body.catalog-open #openCatalogBtn { opacity: 0; pointer-events: none; }
+
+    .video-panel {
+      position: fixed; bottom: max(28px, env(safe-area-inset-bottom)); left: 50%;
+      transform: translateX(-50%) translateY(16px); display: flex; opacity: 0; z-index: 100;
+      transition: opacity 0.45s ease, transform 0.45s ease; pointer-events: none;
+    }
+    body.found .video-panel { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    body.catalog-open .video-panel { opacity: 0; pointer-events: none; }
+
+    /* =====================================================
+       WEBSITE-STYLE CATALOG
+    ===================================================== */
+    #catalogStage { position: fixed; inset: 0; z-index: 2000; pointer-events: none; }
+
+    #catalogSheet {
+      position: absolute; inset: 0; height: 100dvh; width: 100vw;
+      background:
+        radial-gradient(ellipse at 15% -10%, rgba(94,15,139,0.5) 0%, transparent 50%),
+        radial-gradient(ellipse at 100% 20%, rgba(212,175,55,0.10) 0%, transparent 45%),
+        linear-gradient(180deg, var(--deep-2) 0%, var(--deep) 100%);
+      overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch; scroll-behavior: smooth;
+      transform: translateY(100%); opacity: 0;
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+      pointer-events: none;
+    }
+    #catalogSheet.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    #catalogSheet::-webkit-scrollbar { width: 8px; }
+    #catalogSheet::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.35); border-radius: 8px; }
+
+    .container { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+
+    /* Navbar */
+    .site-nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(19, 8, 33, 0.82);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(212,175,55,0.2);
+      padding-top: env(safe-area-inset-top);
+    }
+    .nav-inner { display: flex; align-items: center; gap: 16px; height: 64px; }
+    .nav-logo {
+      font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 22px;
+      letter-spacing: 4px; color: var(--gold-soft); display: flex; align-items: center; gap: 10px;
+      white-space: nowrap;
+    }
+    .nav-logo::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--gold); box-shadow: 0 0 10px var(--gold);
+    }
+    .nav-links { display: none; gap: 26px; margin-left: 28px; }
+    .nav-links a {
+      font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase;
+      color: var(--cream-dim); text-decoration: none; cursor: pointer; transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--gold-soft); }
+    .nav-spacer { flex: 1; }
+    .nav-search { position: relative; display: none; width: 260px; }
+    .nav-search input, .mobile-search input {
+      width: 100%; padding: 10px 16px 10px 38px; border-radius: 999px;
+      border: 1px solid var(--glass-border); background: var(--glass);
+      color: var(--cream); font-family: 'Manrope', sans-serif; font-size: 13px; outline: none;
+      transition: border-color .2s, background .2s;
+    }
+    .nav-search input:focus, .mobile-search input:focus { border-color: var(--gold); background: rgba(245,239,230,0.12); }
+    .nav-search input::placeholder, .mobile-search input::placeholder { color: var(--cream-dim); }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; opacity: .7; pointer-events: none; }
+    .close-btn {
+      display: flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px;
+      border: 1px solid var(--gold); background: transparent; color: var(--gold-soft);
+      font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase; cursor: pointer;
+      transition: background .2s, color .2s, transform .15s;
+    }
+    .close-btn:hover { background: var(--gold); color: var(--deep); }
+    .close-btn:active { transform: scale(0.95); }
+
+    .mobile-search { position: relative; padding: 0 20px 12px; }
+    .mobile-search .search-icon { left: 34px; top: calc(50% - 6px); }
+
+    /* Hero */
+    .hero { position: relative; padding: 56px 0 44px; text-align: center; overflow: hidden; }
+    .hero::before {
+      content: ""; position: absolute; left: 50%; top: -120px; width: 620px; height: 620px;
+      transform: translateX(-50%); border-radius: 50%;
+      background: radial-gradient(circle, rgba(94,15,139,0.55) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; }
+    .eyebrow { font-size: 11px; letter-spacing: 5px; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 14px; }
+    .hero h1 {
+      font-family: 'Cormorant Garamond', serif; font-weight: 600;
+      font-size: clamp(38px, 8vw, 74px); line-height: 1.02; margin: 0 0 16px; letter-spacing: 1px;
+      background: linear-gradient(100deg, var(--gold-soft) 15%, #fff 45%, var(--gold-soft) 75%);
+      background-size: 220% auto; background-clip: text; -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #catalogSheet.open .hero h1 { animation: titleShine 2.4s ease-out 0.4s 1; }
+    @keyframes titleShine { 0% { background-position: 200% center; } 100% { background-position: 0% center; } }
+    .hero p { max-width: 520px; margin: 0 auto 26px; color: var(--cream-dim); font-size: 15px; line-height: 1.7; }
+    .hero-cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .btn-gold {
+      padding: 13px 28px; border-radius: 999px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-soft) 100%); color: var(--deep);
+      font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 700;
+      letter-spacing: 1.4px; text-transform: uppercase;
+      box-shadow: 0 10px 28px rgba(212,175,55,0.25); transition: transform .15s;
+    }
+    .btn-gold:active { transform: scale(0.96); }
+    .btn-ghost {
+      padding: 13px 28px; border-radius: 999px; cursor: pointer; background: transparent;
+      border: 1px solid var(--glass-border); color: var(--cream);
+      font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 700;
+      letter-spacing: 1.4px; text-transform: uppercase;
+    }
+    .hero-stats {
+      display: flex; justify-content: center; gap: 36px; margin-top: 36px; flex-wrap: wrap;
+    }
+    .stat b { display: block; font-family: 'Cormorant Garamond', serif; font-size: 30px; color: var(--gold-soft); font-weight: 600; }
+    .stat span { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--cream-dim); }
+
+    /* Category tiles */
+    .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .section-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 600; margin: 0; color: var(--cream); }
+    .section-title small { display: block; font-family: 'Manrope', sans-serif; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; font-weight: 600; }
+
+    /* Toolbar */
+    .toolbar {
+      position: sticky; top: 64px; z-index: 15; padding: 12px 0;
+      background: linear-gradient(180deg, rgba(19,8,33,0.95) 60%, rgba(19,8,33,0));
+      margin-top: 10px;
+    }
+    .toolbar-inner { display: flex; align-items: center; gap: 14px; justify-content: space-between; }
+    .category-scroll { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+    .category-scroll::-webkit-scrollbar { display: none; }
+    .category-chip {
+      padding: 9px 18px; border-radius: 999px; background: var(--glass);
+      border: 1px solid var(--glass-border); color: var(--cream); font-family: 'Manrope', sans-serif;
+      font-size: 12px; letter-spacing: 1px; white-space: nowrap; cursor: pointer;
+      transition: all 0.2s ease; text-transform: capitalize;
+    }
+    .category-chip .count { opacity: .6; margin-left: 6px; font-size: 11px; }
+    .category-chip:hover { border-color: var(--gold); }
+    .category-chip.active { background: var(--gold); color: var(--deep); border-color: var(--gold); font-weight: 700; }
+    .sort-wrap { display: none; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--cream-dim); white-space: nowrap; }
+    .sort-wrap select {
+      background: var(--glass); color: var(--cream); border: 1px solid var(--glass-border);
+      border-radius: 999px; padding: 8px 14px; font-family: 'Manrope', sans-serif; font-size: 12px; outline: none;
+    }
+    .sort-wrap select option { background: var(--deep-2); color: var(--cream); }
+    .result-line { font-size: 12px; color: var(--cream-dim); letter-spacing: 1px; margin: 4px 0 18px; }
+
+    /* Product grid */
+    .catalog-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding-bottom: 60px;
+    }
+    .catalog-card {
+      position: relative; background: rgba(255,255,255,0.04); border: 1px solid rgba(212,175,55,0.22);
+      border-radius: 16px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
+      opacity: 0; animation: cardRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
+    }
+    .catalog-card:hover {
+      transform: translateY(-6px); border-color: var(--gold);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,175,55,0.15);
+    }
+    @keyframes cardRise { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .thumb-wrap { position: relative; width: 100%; aspect-ratio: 4/5; overflow: hidden; background: rgba(255,255,255,0.03); }
+    .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .7s ease; }
+    .catalog-card:hover .thumb-wrap img { transform: scale(1.08); }
+    .thumb-wrap::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.22) 48%, transparent 60%);
+      transform: translateX(-120%); pointer-events: none;
+    }
+    .catalog-card:hover .thumb-wrap::after { transform: translateX(120%); transition: transform 0.8s ease; }
+    .badge {
+      position: absolute; top: 10px; left: 10px; z-index: 2; padding: 4px 10px; border-radius: 999px;
+      background: rgba(19,8,33,0.72); border: 1px solid var(--glass-border);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold-soft);
+    }
+    .card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .card-body .name {
+      font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 600; color: var(--cream);
+      line-height: 1.2; text-transform: capitalize; overflow: hidden; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .card-body .view {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .card-body .view::after { content: "→"; transition: transform .25s; }
+    .catalog-card:hover .view::after { transform: translateX(5px); }
+
+    .skeleton { pointer-events: none; opacity: 1; animation: none; }
+    .skeleton .thumb-wrap, .skeleton .line {
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+    }
+    .skeleton .line { height: 14px; border-radius: 6px; margin: 4px 0; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    .catalog-empty {
+      grid-column: 1 / -1; text-align: center; color: var(--cream-dim); padding: 70px 0;
+      font-family: 'Cormorant Garamond', serif; font-size: 20px; font-style: italic;
+    }
+
+    /* Promise strip */
+    .promise { border-top: 1px solid rgba(212,175,55,0.18); border-bottom: 1px solid rgba(212,175,55,0.18); padding: 28px 0; margin-bottom: 0; }
+    .promise-grid { display: grid; grid-template-columns: 1fr; gap: 20px; text-align: center; }
+    .promise-item .ic { font-size: 22px; margin-bottom: 6px; }
+    .promise-item h4 { margin: 0 0 4px; font-family: 'Cormorant Garamond', serif; font-size: 19px; color: var(--gold-soft); }
+    .promise-item p { margin: 0; font-size: 12px; color: var(--cream-dim); line-height: 1.6; }
+
+    /* Footer */
+    .site-footer { padding: 44px 0 calc(40px + env(safe-area-inset-bottom)); text-align: center; background: rgba(0,0,0,0.25); }
+    .site-footer .logo { font-family: 'Cormorant Garamond', serif; font-size: 26px; letter-spacing: 5px; color: var(--gold-soft); font-weight: 700; }
+    .site-footer p { color: var(--cream-dim); font-size: 12px; letter-spacing: 1px; margin: 10px 0 0; }
+    .footer-links { display: flex; justify-content: center; gap: 22px; margin: 18px 0; flex-wrap: wrap; }
+    .footer-links a { color: var(--cream); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; cursor: pointer; opacity: .8; }
+    .footer-links a:hover { color: var(--gold-soft); opacity: 1; }
+
+    /* Product modal */
+    #productModal {
+      position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(8,3,15,0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      opacity: 0; pointer-events: none; transition: opacity .3s ease;
+    }
+    #productModal.show { opacity: 1; pointer-events: auto; }
+    .modal-card {
+      width: 100%; max-width: 900px; max-height: 92dvh; overflow-y: auto;
+      background: linear-gradient(180deg, var(--deep-2), var(--deep));
+      border: 1px solid var(--glass-border); border-radius: 20px; position: relative;
+      display: grid; grid-template-columns: 1fr; transform: translateY(30px) scale(0.97);
+      transition: transform .4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #productModal.show .modal-card { transform: translateY(0) scale(1); }
+    .modal-img { background: rgba(255,255,255,0.03); aspect-ratio: 1; }
+    .modal-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .modal-info { padding: 26px 24px 30px; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+    .modal-info .cat { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); }
+    .modal-info h2 { margin: 0; font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 600; text-transform: capitalize; line-height: 1.1; }
+    .modal-info p { margin: 0; color: var(--cream-dim); font-size: 14px; line-height: 1.7; }
+    .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+    .modal-close {
+      position: absolute; top: 12px; right: 12px; z-index: 3; width: 38px; height: 38px; border-radius: 50%;
+      border: 1px solid var(--glass-border); background: rgba(19,8,33,0.8); color: var(--gold-soft);
+      font-size: 18px; cursor: pointer;
+    }
+
+    /* Desktop */
+    @media (min-width: 768px) {
+      .nav-links, .sort-wrap { display: flex; }
+      .nav-search { display: block; }
+      .mobile-search { display: none; }
+      .catalog-grid { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+      .promise-grid { grid-template-columns: repeat(3, 1fr); }
+      .hero { padding: 84px 0 64px; }
+      .modal-card { grid-template-columns: 1fr 1fr; }
+      .modal-img { aspect-ratio: auto; min-height: 460px; }
+      .modal-info { padding: 40px 36px; }
+    }
+    @media (min-width: 1100px) {
+      .catalog-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; left: 50%; bottom: max(90px, calc(env(safe-area-inset-bottom) + 70px));
+      transform: translateX(-50%) translateY(16px); z-index: 99998;
+      padding: 10px 20px; border-radius: 999px;
+      background: rgba(19, 8, 33, 0.92); border: 1px solid var(--gold);
+      color: var(--gold-soft); font-size: 12px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; opacity: 0; pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Hide MindAR UI */
+    [class^="mindar-ui"], [id^="mindar-ui"], .mindar-ui-overlay,
+    .a-enter-vr, .a-enter-ar, .a-orientation-modal {
+      display: none !important; visibility: hidden !important; opacity: 0 !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #catalogSheet, .catalog-card, .hero h1, .thumb-wrap img { animation: none !important; transition: opacity 0.3s ease !important; }
+      .catalog-card { opacity: 1; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <video id="rawCameraFeed" autoplay playsinline muted></video>
+
+  <div id="blackCurtain">
+    <svg class="gem-loader" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 4 L48 20 L28 52 L8 20 Z M8 20 L48 20 M18 20 L28 4 L38 20 M18 20 L28 52 M38 20 L28 52" />
+    </svg>
+    <div id="loader">Initializing<span>Camera &amp; AR</span></div>
+  </div>
+
+  <div id="brandMark">JEWELS·AI</div>
+
+  <div id="scanHint">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <div class="scanline"></div>
+    <p>Align with drive card</p>
+  </div>
+
+  <button class="plan-button" id="openCatalogBtn">📖 Catalog</button>
+
+  <div class="video-panel" id="videoControls">
+    <button class="plan-button" id="toggleButton">▶ Play Video</button>
+  </div>
+
+  <!-- ================= Website-style Catalog ================= -->
+  <div id="catalogStage">
+    <div id="catalogSheet">
+
+      <!-- Navbar -->
+      <header class="site-nav">
+        <div class="container nav-inner">
+          <div class="nav-logo">JEWELS·AI</div>
+          <nav class="nav-links">
+            <a data-scroll="top">Home</a>
+            <a data-scroll="collection">Collection</a>
+            <a data-scroll="promise">Why Us</a>
+            <a data-scroll="contact">Contact</a>
+          </nav>
+          <div class="nav-spacer"></div>
+          <div class="nav-search">
+            <span class="search-icon">🔍</span>
+            <input type="search" id="searchInput" placeholder="Search jewellery…" autocomplete="off" />
+          </div>
+          <button class="close-btn" id="closeCatalogBtn" aria-label="Close catalog">✕ <span>Close</span></button>
+        </div>
+        <div class="mobile-search">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="searchInputMobile" placeholder="Search jewellery…" autocomplete="off" />
+        </div>
+      </header>
+
+      <!-- Hero -->
+      <section class="hero" id="catTop">
+        <div class="container">
+          <div class="eyebrow">Fine Jewellery · Handcrafted</div>
+          <h1>The Collection</h1>
+          <p>Timeless bridal sets, statement necklaces, elegant bangles and rings — explore our latest pieces, updated live.</p>
+          <div class="hero-cta">
+            <button class="btn-gold" id="heroBrowse">Browse Collection</button>
+            <button class="btn-ghost" id="heroBridal">Bridal Edit</button>
+          </div>
+          <div class="hero-stats">
+            <div class="stat"><b id="statTotal">—</b><span>Designs</span></div>
+            <div class="stat"><b>4</b><span>Categories</span></div>
+            <div class="stat"><b>AR</b><span>Try &amp; View</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Collection -->
+      <section id="catCollection">
+        <div class="container">
+          <div class="section-head">
+            <h2 class="section-title"><small>Our Pieces</small>Shop the Collection</h2>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="container toolbar-inner">
+            <div class="category-scroll" id="categoryTabs">
+              <button class="category-chip active" data-cat="all">All<span class="count" id="cnt-all"></span></button>
+              <button class="category-chip" data-cat="bridal">Bridal<span class="count" id="cnt-bridal"></span></button>
+              <button class="category-chip" data-cat="necklaces">Necklaces<span class="count" id="cnt-necklaces"></span></button>
+              <button class="category-chip" data-cat="bangles">Bangles<span class="count" id="cnt-bangles"></span></button>
+              <button class="category-chip" data-cat="rings">Rings<span class="count" id="cnt-rings"></span></button>
+            </div>
+            <label class="sort-wrap">Sort
+              <select id="sortSelect">
+                <option value="default">Featured</option>
+                <option value="az">Name A–Z</option>
+                <option value="za">Name Z–A</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="container">
+          <div class="result-line" id="resultLine"></div>
+          <div class="catalog-grid" id="catalogList"></div>
+        </div>
+      </section>
+
+      <!-- Promise -->
+      <section class="promise" id="catPromise">
+        <div class="container promise-grid">
+          <div class="promise-item"><div class="ic">💎</div><h4>Certified Quality</h4><p>Every piece is crafted with care and verified for purity.</p></div>
+          <div class="promise-item"><div class="ic">✨</div><h4>Exclusive Designs</h4><p>Contemporary and traditional styles you won't find elsewhere.</p></div>
+          <div class="promise-item"><div class="ic">📱</div><h4>AR Experience</h4><p>Scan the drive card to see our latest showcase come alive.</p></div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="site-footer" id="catContact">
+        <div class="container">
+          <div class="logo">JEWELS·AI</div>
+          <div class="footer-links">
+            <a data-cat-link="bridal">Bridal</a>
+            <a data-cat-link="necklaces">Necklaces</a>
+            <a data-cat-link="bangles">Bangles</a>
+            <a data-cat-link="rings">Rings</a>
+          </div>
+          <p>© <span id="yr"></span> JEWELS·AI · All rights reserved</p>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Product detail modal -->
+  <div id="productModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      <div class="modal-img"><img id="modalImg" alt="" /></div>
+      <div class="modal-info">
+        <div class="cat" id="modalCat"></div>
+        <h2 id="modalName"></h2>
+        <p>A beautifully crafted piece from our collection. Visit the store or contact us to enquire about availability, customisation and pricing.</p>
+        <div class="modal-actions">
+          <button class="btn-gold" id="modalEnquire">Enquire Now</button>
+          <button class="btn-ghost" id="modalBack">Keep Browsing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiError: no; filterMinCF:0.0001; filterBeta: 0.001;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="antialias: true; alpha: true">
+
+    <a-assets>
+      <video id="driveVideo" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target1" mindar-image-target="targetIndex: 0" visible="false">
+      <a-plane
+        id="videoPlane"
+        width="1"
+        height="1"
+        visible="false"
+        material="src: #driveVideo; side: double; transparent: false">
+      </a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    /* ======================================================
+       CONFIGURATION
+    ====================================================== */
+    const API_KEY = "AIzaSyA_mBu6emRKASkqHpLtwkdBiCQKYO3rvcw";
+    const FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
+
+    // Optional: put your WhatsApp number with country code (e.g. "919876543210").
+    // If left empty, the "Enquire Now" button just closes the popup.
+    const WHATSAPP_NUMBER = "";
+
+    const CATALOG_FOLDERS = {
+      bangles: "1loeb_40A3eOjzB2PnY24MXsxKFsE06L-",
+      bridal: "1RQJWVfvRpvcQw_DdhWxZKB18-GzKoD3B",
+      necklaces: "1Zmg8bnpmOChwqwrVWFeBCvXxOEQihC3Q",
+      rings: "1Xz92BSq1jtdxJyiKO5o7lzx0bepnDQzz"
+    };
+
+    let CATALOG_ITEMS = [];
+
+    function escapeHTML(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    /* ======================================================
+       LIVE DRIVE VIDEO SYNC
+    ====================================================== */
+    async function getLatestVideoId() {
+      try {
+        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+mimeType+contains+'video/'&orderBy=modifiedTime desc&pageSize=1&fields=files(id)&key=${API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        return (data.files && data.files.length > 0) ? data.files[0].id : null;
+      } catch (error) {
+        console.error("Drive Fetch Error:", error);
+        return null;
+      }
+    }
+
+    /* ======================================================
+       CATALOG IMAGES SYNC
+    ====================================================== */
+    async function fetchDriveCatalog() {
+      const items = [];
+      const fetchPromises = Object.entries(CATALOG_FOLDERS).map(async ([catName, folderId]) => {
+        try {
+          const query = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+          const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)&pageSize=30&key=${API_KEY}`;
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (data.files && data.files.length > 0) {
+            data.files.forEach(file => {
+              const cleanTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+              items.push({
+                id: file.id,
+                name: cleanTitle,
+                category: catName,
+                img: `https://drive.google.com/thumbnail?id=${file.id}&sz=w800`,
+                imgLarge: `https://drive.google.com/thumbnail?id=${file.id}&sz=w1600`
+              });
+            });
+          }
+        } catch (err) {
+          console.error(`Error loading category: ${catName}`, err);
+        }
+      });
+
+      await Promise.all(fetchPromises);
+      CATALOG_ITEMS = items;
+      return items;
+    }
+
+    let rawStream = null;
+    let rawStarting = false;
+
+    function stopRawCameraFeed() {
+      const rawFeed = document.querySelector("#rawCameraFeed");
+      if (rawStream) {
+        rawStream.getTracks().forEach(t => t.stop());
+        rawStream = null;
+      }
+      if (rawFeed) rawFeed.srcObject = null;
+    }
+
+    async function startRawCameraFeed() {
+      if (rawStream || rawStarting) return;
+      const rawFeed = document.querySelector("#rawCameraFeed");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("getUserMedia not supported in this browser.");
+        return;
+      }
+      rawStarting = true;
+      try {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+          });
+        } catch (envErr) {
+          console.warn("Rear camera unavailable, falling back to default camera:", envErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        rawStream = stream;
+        rawFeed.srcObject = stream;
+        await rawFeed.play();
+      } catch (anyErr) {
+        console.error("Camera access failed entirely:", anyErr);
+      } finally {
+        rawStarting = false;
+      }
+    }
+
+    /* ======================================================
+       APP LIFECYCLE & AR LOGIC
+    ====================================================== */
+    window.addEventListener("load", async () => {
+      const videoEl = document.querySelector("#driveVideo");
+      const videoPlane = document.querySelector("#videoPlane");
+      const target = document.querySelector("#target1");
+      const toggleButton = document.querySelector("#toggleButton");
+      const curtain = document.querySelector("#blackCurtain");
+      const sceneEl = document.querySelector('a-scene');
+
+      const openCatalogBtn = document.querySelector("#openCatalogBtn");
+      const closeCatalogBtn = document.querySelector("#closeCatalogBtn");
+      const catalogSheet = document.querySelector("#catalogSheet");
+      const catalogList = document.querySelector("#catalogList");
+      const categoryTabs = document.querySelectorAll(".category-chip");
+      const searchInput = document.querySelector("#searchInput");
+      const searchInputMobile = document.querySelector("#searchInputMobile");
+      const sortSelect = document.querySelector("#sortSelect");
+      const resultLine = document.querySelector("#resultLine");
+
+      const productModal = document.querySelector("#productModal");
+      const modalImg = document.querySelector("#modalImg");
+      const modalName = document.querySelector("#modalName");
+      const modalCat = document.querySelector("#modalCat");
+
+      let isPlaying = false;
+      let catalogTransitioning = false;
+      let currentLoadedFileId = null;
+      let activeCat = "all";
+      let searchTerm = "";
+      let sortMode = "default";
+      let currentProduct = null;
+
+      document.querySelector("#yr").textContent = new Date().getFullYear();
+
+      const uiKiller = setInterval(() => {
+        document.querySelectorAll('[class^="mindar-ui"], [id^="mindar-ui"]').forEach(el => el.remove());
+      }, 100);
+
+      startRawCameraFeed();
+
+      // AUTO-CROP LOGIC
+      videoEl.addEventListener('loadedmetadata', () => {
+        if (!videoPlane) return;
+        const videoWidth = videoEl.videoWidth;
+        const videoHeight = videoEl.videoHeight;
+        if (videoWidth === 0 || videoHeight === 0) return;
+
+        const aspectRatio = videoWidth / videoHeight;
+        if (aspectRatio > 1) {
+          const repeatX = 1 / aspectRatio;
+          const offsetX = (1 - repeatX) / 2;
+          videoPlane.setAttribute('material', `repeat: ${repeatX} 1; offset: ${offsetX} 0`);
+        } else {
+          const repeatY = aspectRatio;
+          const offsetY = (1 - repeatY) / 2;
+          videoPlane.setAttribute('material', `repeat: 1 ${repeatY}; offset: 0 ${offsetY}`);
+        }
+      });
+
+      /* ---------- Catalog rendering ---------- */
+      function showSkeletons() {
+        catalogList.innerHTML = Array.from({ length: 8 }).map(() => `
+          <div class="catalog-card skeleton">
+            <div class="thumb-wrap"></div>
+            <div class="card-body"><div class="line" style="width:80%"></div><div class="line" style="width:40%"></div></div>
+          </div>`).join("");
+      }
+
+      function updateCounts() {
+        const counts = { all: CATALOG_ITEMS.length, bridal: 0, necklaces: 0, bangles: 0, rings: 0 };
+        CATALOG_ITEMS.forEach(i => { if (counts[i.category] !== undefined) counts[i.category]++; });
+        Object.entries(counts).forEach(([k, v]) => {
+          const el = document.querySelector("#cnt-" + k);
+          if (el) el.textContent = v;
+        });
+        document.querySelector("#statTotal").textContent = counts.all;
+      }
+
+      function getVisibleItems() {
+        let list = activeCat === "all" ? [...CATALOG_ITEMS] : CATALOG_ITEMS.filter(i => i.category === activeCat);
+        if (searchTerm) {
+          const q = searchTerm.toLowerCase();
+          list = list.filter(i => i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+        }
+        if (sortMode === "az") list.sort((a, b) => a.name.localeCompare(b.name));
+        if (sortMode === "za") list.sort((a, b) => b.name.localeCompare(a.name));
+        return list;
+      }
+
+      function renderCatalog() {
+        const items = getVisibleItems();
+        catalogList.innerHTML = "";
+        resultLine.textContent = items.length
+          ? `Showing ${items.length} piece${items.length === 1 ? "" : "s"}`
+          : "";
+
+        if (items.length === 0) {
+          catalogList.innerHTML = `<div class="catalog-empty">No pieces found. Try a different search or category.</div>`;
+          return;
+        }
+
+        items.forEach((item, i) => {
+          const card = document.createElement("div");
+          card.className = "catalog-card";
+          card.style.animationDelay = Math.min(i * 45, 450) + "ms";
+          card.innerHTML = `
+            <div class="thumb-wrap">
+              <span class="badge">${escapeHTML(item.category)}</span>
+              <img src="${item.img}" alt="${escapeHTML(item.name)}" loading="lazy" referrerpolicy="no-referrer" />
+            </div>
+            <div class="card-body">
+              <div class="name">${escapeHTML(item.name)}</div>
+              <div class="view">View details</div>
+            </div>`;
+          card.addEventListener("click", () => openProduct(item));
+          catalogList.appendChild(card);
+        });
+      }
+
+      function setCategory(cat, scrollToGrid) {
+        activeCat = cat;
+        categoryTabs.forEach(c => c.classList.toggle("active", c.dataset.cat === cat));
+        renderCatalog();
+        if (scrollToGrid) scrollToSection("catCollection");
+      }
+
+      function scrollToSection(id) {
+        const el = document.getElementById(id);
+        if (el) catalogSheet.scrollTo({ top: el.offsetTop - 70, behavior: "smooth" });
+      }
+
+      /* ---------- Product modal ---------- */
+      function openProduct(item) {
+        currentProduct = item;
+        modalImg.src = item.imgLarge;
+        modalImg.alt = item.name;
+        modalName.textContent = item.name;
+        modalCat.textContent = item.category;
+        productModal.classList.add("show");
+        productModal.setAttribute("aria-hidden", "false");
+      }
+      function closeProduct() {
+        productModal.classList.remove("show");
+        productModal.setAttribute("aria-hidden", "true");
+      }
+      document.querySelector("#modalClose").addEventListener("click", closeProduct);
+      document.querySelector("#modalBack").addEventListener("click", closeProduct);
+      productModal.addEventListener("click", (e) => { if (e.target === productModal) closeProduct(); });
+      document.querySelector("#modalEnquire").addEventListener("click", () => {
+        if (WHATSAPP_NUMBER && currentProduct) {
+          const msg = encodeURIComponent(`Hi, I'm interested in "${currentProduct.name}" (${currentProduct.category}).`);
+          window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, "_blank", "noopener");
+        } else {
+          closeProduct();
+        }
+      });
+
+      /* ---------- Navigation / controls ---------- */
+      document.querySelectorAll("[data-scroll]").forEach(a => {
+        a.addEventListener("click", () => {
+          const map = { top: "catTop", collection: "catCollection", promise: "catPromise", contact: "catContact" };
+          if (a.dataset.scroll === "top") catalogSheet.scrollTo({ top: 0, behavior: "smooth" });
+          else scrollToSection(map[a.dataset.scroll]);
+        });
+      });
+      document.querySelectorAll("[data-cat-link]").forEach(a => {
+        a.addEventListener("click", () => setCategory(a.dataset.catLink, true));
+      });
+      document.querySelector("#heroBrowse").addEventListener("click", () => scrollToSection("catCollection"));
+      document.querySelector("#heroBridal").addEventListener("click", () => setCategory("bridal", true));
+
+      categoryTabs.forEach(chip => chip.addEventListener("click", () => setCategory(chip.dataset.cat, false)));
+
+      function onSearch(value) {
+        searchTerm = value.trim();
+        searchInput.value = value;
+        searchInputMobile.value = value;
+        renderCatalog();
+      }
+      searchInput.addEventListener("input", e => onSearch(e.target.value));
+      searchInputMobile.addEventListener("input", e => onSearch(e.target.value));
+      sortSelect.addEventListener("change", e => { sortMode = e.target.value; renderCatalog(); });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          if (productModal.classList.contains("show")) closeProduct();
+          else if (catalogSheet.classList.contains("open")) closeCatalog();
+        }
+      });
+
+      showSkeletons();
+      await fetchDriveCatalog();
+      updateCounts();
+      renderCatalog();
+
+      /* ---------- AR camera pause/resume ---------- */
+      let arRunning = true;
+      let arBusy = false;
+
+      function getArSystem() {
+        return sceneEl.systems && sceneEl.systems["mindar-image-system"];
+      }
+
+      // Fully release the camera (MindAR stop() ends every camera track)
+      async function pauseCamera() {
+        stopRawCameraFeed();
+        if (arBusy || !arRunning) return;
+        const arSystem = getArSystem();
+        if (!arSystem || !arSystem.video) return; // AR not started yet
+        arBusy = true;
+        try {
+          arSystem.stop();
+          // Safety net: make sure no camera track is left running
+          document.querySelectorAll("video").forEach(v => {
+            const s = v.srcObject;
+            if (s && s.getTracks) s.getTracks().forEach(t => t.stop());
+          });
+          arRunning = false;
+        } catch (err) {
+          console.warn("Could not stop AR camera:", err);
+        }
+        arBusy = false;
+      }
+
+      // Re-open the camera and restart AR tracking
+      async function resumeCamera() {
+        if (arBusy || arRunning) return;
+        const arSystem = getArSystem();
+        if (!arSystem) return;
+        arBusy = true;
+        try {
+          await arSystem.start();
+          arRunning = true;
+        } catch (err) {
+          console.warn("Could not restart AR camera:", err);
+        }
+        arBusy = false;
+        startRawCameraFeed();
+      }
+
+      function openCatalog() {
+        if (catalogTransitioning) return;
+        catalogTransitioning = true;
+
+        if (videoEl && !videoEl.paused) videoEl.pause();
+        isPlaying = false;
+        toggleButton.textContent = "▶ Play Video";
+
+        document.body.classList.add("catalog-open");
+        catalogSheet.classList.add("open");
+        catalogSheet.scrollTop = 0;
+        pauseCamera();
+        setTimeout(() => { catalogTransitioning = false; }, 300);
+      }
+
+      function closeCatalog() {
+        if (catalogTransitioning) return;
+        if (!catalogSheet.classList.contains("open")) return;
+        catalogTransitioning = true;
+        closeProduct();
+        catalogSheet.classList.remove("open");
+        document.body.classList.remove("catalog-open");
+        resumeCamera();
+        setTimeout(() => { catalogTransitioning = false; }, 300);
+      }
+
+      openCatalogBtn.addEventListener("click", openCatalog);
+      closeCatalogBtn.addEventListener("click", closeCatalog);
+
+      /* ---------- Curtain ---------- */
+      function dismissCurtain() {
+        if (curtain) {
+          curtain.style.opacity = "0";
+          setTimeout(() => {
+            curtain.style.display = "none";
+            clearInterval(uiKiller);
+          }, 600);
+        }
+      }
+
+      let curtainDismissed = false;
+      function dismissCurtainOnce() {
+        if (curtainDismissed) return;
+        curtainDismissed = true;
+        dismissCurtain();
+      }
+
+      sceneEl.addEventListener("arReady", () => dismissCurtainOnce());
+      sceneEl.addEventListener("arError", (err) => {
+        console.error("MindAR failed to start:", err);
+        dismissCurtainOnce();
+      });
+
+      const curtainWatcher = setInterval(() => {
+        const camFeed = document.querySelector('video.mindar-camera, video[autoplay]');
+        if (camFeed && camFeed.readyState >= 2 && !camFeed.paused) {
+          dismissCurtainOnce();
+          clearInterval(curtainWatcher);
+        }
+      }, 300);
+
+      setTimeout(() => {
+        clearInterval(curtainWatcher);
+        dismissCurtainOnce();
+      }, 6000);
+
+      /* ---------- TARGET FOUND ---------- */
+      target.addEventListener("targetFound", async () => {
+        document.body.classList.add("found");
+
+        if (!currentLoadedFileId) {
+          const fileId = await getLatestVideoId();
+          if (fileId) {
+            currentLoadedFileId = fileId;
+            videoEl.src = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+            videoEl.load();
+          }
+        }
+
+        isPlaying = false;
+        toggleButton.textContent = "▶ Play Video";
+
+        target.object3D.visible = true;
+        target.setAttribute("visible", "true");
+        if (videoPlane) {
+          videoPlane.object3D.visible = true;
+          videoPlane.setAttribute("visible", "true");
+        }
+      });
+
+      /* ---------- TARGET LOST ---------- */
+      target.addEventListener("targetLost", () => {
+        document.body.classList.remove("found");
+        closeCatalog();
+
+        if (!videoEl.paused) videoEl.pause();
+
+        target.object3D.visible = false;
+        target.setAttribute("visible", "false");
+
+        if (videoPlane) {
+          videoPlane.object3D.visible = false;
+          videoPlane.setAttribute("visible", "false");
+        }
+
+        isPlaying = false;
+        toggleButton.textContent = "▶ Play Video";
+      });
+
+      /* ---------- PLAY/PAUSE ---------- */
+      toggleButton.addEventListener("click", async () => {
+        try {
+          if (!isPlaying) {
+            videoEl.muted = false;
+            await videoEl.play();
+            toggleButton.textContent = "⏸ Pause Video";
+            isPlaying = true;
+            target.object3D.visible = true;
+            target.setAttribute("visible", "true");
+            if (videoPlane) {
+              videoPlane.object3D.visible = true;
+              videoPlane.setAttribute("visible", "true");
+            }
+          } else {
+            videoEl.pause();
+            toggleButton.textContent = "▶ Play Video";
+            isPlaying = false;
+          }
+        } catch (err) {
+          console.error("Playback error:", err);
+        }
+      });
+    });
+
+    /* ======================================================
+       BASIC DETERRENTS (shortcut blocking + toast)
+    ====================================================== */
+    let toastTimer = null;
+    function showToast(message) {
+      const toast = document.querySelector("#toast");
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      const key = e.key ? e.key.toUpperCase() : "";
+
+      if (
+        e.key === "F12" ||
+        (isCmdOrCtrl && e.shiftKey && (key === "I" || key === "J" || key === "C")) ||
+        (isCmdOrCtrl && key === "U")
+      ) {
+        e.preventDefault();
+        showToast("Action Disabled");
+      }
+    });
+
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showToast("Action Disabled");
+    });
+  </script>
+</body>
+</html>

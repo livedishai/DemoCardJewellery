@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JEWELS-AI | Vault Media Manager</title>
+<style>
+:root{
+  --bg:#08050d;--panel:#100b17;--panel2:#150e1d;--gold:#e5c158;--gold2:#f9e7a2;
+  --text:#f5efe6;--muted:#a9a0ad;--line:rgba(229,193,88,.28);--purple:#7212b0;
+  --danger:#e63946;
+}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% 0,#21102f 0,#08050d 52%);color:var(--text);font-family:Arial,sans-serif;min-height:100vh}
+.wrap{width:min(960px,94vw);margin:28px auto;padding:24px;border:1px solid var(--line);border-radius:28px;background:rgba(16,11,23,.88);box-shadow:0 20px 70px #000}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:1px}.sub{color:var(--muted);font-size:12px;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:0 0 7px;letter-spacing:.5px}
+input,select{width:100%;height:44px;border:1px solid rgba(255,255,255,.13);border-radius:10px;background:#07040b;color:#fff;padding:0 13px;outline:none}
+input:focus,select:focus{border-color:var(--gold)}
+.drop{margin-top:14px;border:1px dashed var(--line);border-radius:14px;min-height:130px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:rgba(255,255,255,.015);transition:border-color .2s,background .2s}
+.drop.drag{background:rgba(229,193,88,.08);border-color:var(--gold)}
+.drop strong{display:block;color:var(--gold2);font-size:12px}.drop span{font-size:11px;color:var(--muted)}
+
+.preview{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}
+.preview-item{position:relative;width:100%;aspect-ratio:1;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.preview-item img{width:100%;height:100%;object-fit:cover;display:block}
+.preview-item .remove-btn{
+  position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,0.8);color:#fff;border:1px solid rgba(255,255,255,0.4);
+  font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  line-height:1;transition:background .2s,transform .1s;
+}
+.preview-item .remove-btn:hover{background:var(--danger);border-color:var(--danger);transform:scale(1.1)}
+
+.btn{border:0;border-radius:999px;height:46px;padding:0 24px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:opacity .2s}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.gold{background:linear-gradient(135deg,#f0cf63,#b78f1d);color:#160e02}.dark{background:#160f1d;border:1px solid var(--line);color:var(--gold2)}
+.actions{display:flex;gap:10px;margin-top:16px}.status{margin-top:14px;font-size:12px;color:var(--gold2);min-height:18px}
+.media-section{margin-top:22px;padding-top:20px;border-top:1px solid rgba(229,193,88,.16)}
+.media-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.media-title h2{font-size:12px;margin:0;letter-spacing:1px;color:var(--gold2)}
+.media-title span{font-size:10px;color:var(--muted)}
+.video-drop{border:1px dashed var(--line);border-radius:14px;min-height:120px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:rgba(255,255,255,.015);overflow:hidden;transition:border-color .2s,background .2s}
+.video-drop.drag{background:rgba(229,193,88,.08);border-color:var(--gold)}
+.video-drop video{width:100%;max-height:220px;object-fit:contain;border-radius:12px}
+.video-name{margin-top:8px;font-size:11px;color:var(--muted);text-align:center}
+.video-actions{display:flex;gap:10px;margin-top:12px}
+.video-actions .btn{flex:1}
+.info{padding:15px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.025);font-size:12px;line-height:1.7;color:#c9c1cb}
+.info b{color:var(--gold2)}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.wrap{margin:10px auto;padding:18px}.preview{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vault Media Stream</h1>
+  <div class="sub">JEWELS-AI • Product Catalogue Upload Manager</div>
+
+  <div class="grid">
+    <section>
+      <label for="productName">PRODUCT NAME</label>
+      <input id="productName" placeholder="E.g., Kundan Royal Choker">
+
+      <div style="height:14px"></div>
+      <label for="category">PRODUCT CATEGORY</label>
+      <select id="category">
+        <option value="">Select category</option>
+        <option>Bangles</option>
+        <option>Bridal Collection</option>
+        <option>Necklace</option>
+        <option>Rings</option>
+      </select>
+
+      <div class="drop" id="drop">
+        <div>
+          <strong>📷 DROP OR SELECT CATALOGUE IMAGE HERE</strong>
+          <span>JPG, PNG, WEBP • Multiple images supported</span>
+        </div>
+      </div>
+      <input id="files" type="file" accept="image/*" multiple hidden>
+      <div class="preview" id="preview"></div>
+    </section>
+
+    <section>
+      <div class="info">
+        <b>Automatic Drive Routing</b><br>
+        Select a category and every uploaded image is sent to its matching Google Drive folder.<br><br>
+        <b>Bangles</b> → Bangles folder<br>
+        <b>Bridal Collection</b> → Bridal Collection folder<br>
+        <b>Necklace</b> → Necklace folder<br>
+        <b>Rings</b> → Rings folder
+      </div>
+
+      <div class="actions">
+        <button class="btn dark" id="clear" type="button">CLEAR ALL</button>
+        <button class="btn gold" id="upload" type="button">UPLOAD THE PRODUCT</button>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+  </div>
+
+  <section class="media-section">
+    <div class="media-title">
+      <h2>AR EXPERIENCE MEDIA (CARD TARGET)</h2>
+      <span>Auto-Compressed for Fast Streaming</span>
+    </div>
+
+    <div class="video-drop" id="videoDrop">
+      <div id="videoPlaceholder">
+        <strong style="display:block;color:var(--gold2);font-size:12px">🎬 DROP AR VIDEO HERE</strong>
+        <span style="font-size:11px;color:var(--muted)">MP4 / WebM / MOV • Auto-compressed for low internet bandwidth</span>
+      </div>
+      <video id="videoPreview" controls playsinline muted style="display:none"></video>
+    </div>
+
+    <input id="videoFile" type="file" accept="video/mp4,video/webm,video/quicktime" hidden>
+    <div class="video-name" id="videoName">Awaiting video file...</div>
+
+    <div class="video-actions">
+      <button class="btn dark" id="clearVideo" type="button">CLEAR VIDEO</button>
+      <button class="btn gold" id="uploadVideo" type="button">COMPRESS & UPLOAD AR VIDEO</button>
+    </div>
+    <div class="status" id="videoStatus"></div>
+  </section>
+</div>
+
+<script>
+// ====================================================
+// 1. CONFIGURATION & DESTINATION IDS
+// ====================================================
+const IMAGE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxy00k2Wyp-e-bfmeiaUaR8teIW36YnFpRmRILXoxZSuG_4UpCTObzLDxWSCvuPAbOt/exec";
+const VIDEO_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxy00k2Wyp-e-bfmeiaUaR8teIW36YnFpRmRILXoxZSuG_4UpCTObzLDxWSCvuPAbOt/exec";
+
+// Google Drive Folder IDs
+const AR_VIDEO_FOLDER_ID = "1jRyVReP4cq7yk1VqwdFCMt0w4on4S77Q";
+
+const FOLDERS = {
+  "Bangles": "1loeb_40A3eOjzB2PnY24MXsxKFsE06L-",
+  "Bridal Collection": "1RQJWVfvRpvcQw_DdhWxZKB18-GzKoD3B",
+  "Necklace": "1Zmg8bnpmOChwqwrVWFeBCvXxOEQihC3Q",
+  "Rings": "1Xz92BSq1jtdxJyiKO5o7lzx0bepnDQzz"
+};
+
+// ====================================================
+// 2. PRODUCT IMAGE GALLERY MANAGEMENT
+// ====================================================
+const drop = document.getElementById("drop");
+const filesEl = document.getElementById("files");
+const preview = document.getElementById("preview");
+const statusEl = document.getElementById("status");
+
+let selected = [];
+
+drop.onclick = () => filesEl.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("drag"); };
+drop.ondragleave = () => drop.classList.remove("drag");
+drop.ondrop = e => {
+  e.preventDefault();
+  drop.classList.remove("drag");
+  addFiles([...e.dataTransfer.files]);
+};
+filesEl.onchange = () => addFiles([...filesEl.files]);
+
+function addFiles(list) {
+  const images = list.filter(f => f.type.startsWith("image/"));
+  selected = [...selected, ...images];
+  renderPreview();
+}
+
+function removeImage(index) {
+  selected.splice(index, 1);
+  renderPreview();
+}
+
+function renderPreview() {
+  preview.innerHTML = "";
+  selected.forEach((file, index) => {
+    const card = document.createElement("div");
+    card.className = "preview-item";
+
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.onload = () => URL.revokeObjectURL(img.src);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove-btn";
+    removeBtn.innerHTML = "&times;";
+    removeBtn.title = "Remove this image";
+    removeBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeImage(index);
+    };
+
+    card.appendChild(img);
+    card.appendChild(removeBtn);
+    preview.appendChild(card);
+  });
+}
+
+document.getElementById("clear").onclick = () => {
+  selected = [];
+  filesEl.value = "";
+  preview.innerHTML = "";
+  statusEl.textContent = "";
+};
+
+function readAsDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+document.getElementById("upload").onclick = async () => {
+  const name = document.getElementById("productName").value.trim();
+  const category = document.getElementById("category").value;
+  if (!name) return alert("Please enter Product Name.");
+  if (!category) return alert("Please select Product Category.");
+  if (!FOLDERS[category]) return alert("No Google Drive folder has been configured for " + category + ".");
+  if (!selected.length) return alert("Please select at least one catalogue image.");
+
+  const btn = document.getElementById("upload");
+  btn.disabled = true;
+
+  try {
+    for (let i = 0; i < selected.length; i++) {
+      statusEl.textContent = `Uploading ${i + 1} of ${selected.length}…`;
+      const data = await readAsDataURL(selected[i]);
+      const payload = {
+        action: "uploadProductImage",
+        folderId: FOLDERS[category],
+        category,
+        productName: name,
+        fileName: selected[i].name,
+        mimeType: selected[i].type,
+        data
+      };
+
+      const res = await fetch(IMAGE_APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || `Upload failed for ${selected[i].name}`);
+    }
+    statusEl.textContent = `✓ ${selected.length} image(s) uploaded to ${category}.`;
+    selected = [];
+    filesEl.value = "";
+    preview.innerHTML = "";
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Upload failed: " + err.message;
+    alert("Upload failed. Check Apps Script deployment and permissions.");
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ====================================================
+// 3. AR VIDEO COMPRESSION & DRIVE UPLOADER
+// ====================================================
+const videoDrop = document.getElementById("videoDrop");
+const videoFileEl = document.getElementById("videoFile");
+const videoPreview = document.getElementById("videoPreview");
+const videoPlaceholder = document.getElementById("videoPlaceholder");
+const videoName = document.getElementById("videoName");
+const videoStatus = document.getElementById("videoStatus");
+const uploadVideoBtn = document.getElementById("uploadVideo");
+const clearVideoBtn = document.getElementById("clearVideo");
+
+let selectedVideo = null;
+
+videoDrop.addEventListener("click", () => videoFileEl.click());
+videoDrop.addEventListener("dragover", e => { e.preventDefault(); videoDrop.classList.add("drag"); });
+videoDrop.addEventListener("dragleave", () => videoDrop.classList.remove("drag"));
+videoDrop.addEventListener("drop", e => {
+  e.preventDefault();
+  videoDrop.classList.remove("drag");
+  const file = [...e.dataTransfer.files].find(f => f.type.startsWith("video/"));
+  if (file) setVideo(file);
+  else alert("Please select an MP4, WebM or compatible video file.");
+});
+
+videoFileEl.addEventListener("change", () => {
+  if (videoFileEl.files[0]) setVideo(videoFileEl.files[0]);
+});
+
+function setVideo(file) {
+  selectedVideo = file;
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  videoPreview.src = URL.createObjectURL(file);
+  videoPreview.style.display = "block";
+  videoPlaceholder.style.display = "none";
+  videoName.textContent = `${file.name} (${sizeMB} MB)`;
+  videoStatus.textContent = "";
+}
+
+function clearVideo() {
+  selectedVideo = null;
+  videoFileEl.value = "";
+  videoPreview.pause();
+  videoPreview.removeAttribute("src");
+  videoPreview.load();
+  videoPreview.style.display = "none";
+  videoPlaceholder.style.display = "block";
+  videoName.textContent = "Awaiting video file...";
+  videoStatus.textContent = "";
+}
+
+clearVideoBtn.addEventListener("click", clearVideo);
+
+function compressVideoFile(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.src = URL.createObjectURL(file);
+    video.muted = true;
+    video.playsInline = true;
+
+    video.onloadedmetadata = () => {
+      const MAX_WIDTH = 720;
+      let width = video.videoWidth || 640;
+      let height = video.videoHeight || 480;
+
+      if (width > MAX_WIDTH) {
+        height = Math.round((height * MAX_WIDTH) / width);
+        width = MAX_WIDTH;
+      }
+      if (width % 2 !== 0) width--;
+      if (height % 2 !== 0) height--;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      const stream = canvas.captureStream(25);
+      
+      let mimeType = "video/webm;codecs=vp8";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4" : "video/webm";
+      }
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        videoBitsPerSecond: 800000 
+      });
+
+      const chunks = [];
+      recorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const compressedBlob = new Blob(chunks, { type: mimeType });
+        URL.revokeObjectURL(video.src);
+        resolve(compressedBlob);
+      };
+
+      recorder.onerror = err => {
+        URL.revokeObjectURL(video.src);
+        reject(err);
+      };
+
+      recorder.start(100);
+
+      let animId = null;
+      function drawFrame() {
+        if (video.paused || video.ended) return;
+        ctx.drawImage(video, 0, 0, width, height);
+        if (onProgress && video.duration) {
+          const pct = Math.round((video.currentTime / video.duration) * 100);
+          onProgress(pct);
+        }
+        animId = requestAnimationFrame(drawFrame);
+      }
+
+      video.onplay = () => { drawFrame(); };
+      video.onended = () => {
+        cancelAnimationFrame(animId);
+        recorder.stop();
+      };
+
+      video.play().catch(reject);
+    };
+
+    video.onerror = err => {
+      URL.revokeObjectURL(video.src);
+      reject(err);
+    };
+  });
+}
+
+uploadVideoBtn.addEventListener("click", async () => {
+  if (!selectedVideo) {
+    alert("Please select an AR video first.");
+    return;
+  }
+  if (!VIDEO_APPS_SCRIPT_URL || !VIDEO_APPS_SCRIPT_URL.startsWith("https://")) {
+    alert("Video Google Apps Script Web App URL is missing or invalid.");
+    return;
+  }
+
+  uploadVideoBtn.disabled = true;
+
+  try {
+    const originalSizeMB = (selectedVideo.size / (1024 * 1024)).toFixed(2);
+    videoStatus.textContent = "Compressing video for low-bandwidth playback (0%)…";
+
+    const compressedBlob = await compressVideoFile(selectedVideo, pct => {
+      videoStatus.textContent = `Compressing video: ${pct}%…`;
+    });
+
+    const compressedSizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(2);
+    videoStatus.textContent = `Optimized: ${originalSizeMB}MB → ${compressedSizeMB}MB. Uploading…`;
+
+    const data = await readAsDataURL(compressedBlob);
+    const cleanBaseName = selectedVideo.name.replace(/\.[^/.]+$/, "");
+    const ext = compressedBlob.type.includes("mp4") ? ".mp4" : ".webm";
+    const finalFileName = `${cleanBaseName}_low_bandwidth${ext}`;
+
+    const payload = {
+      action: "uploadARVideo",
+      folderId: AR_VIDEO_FOLDER_ID,
+      fileName: finalFileName,
+      mimeType: compressedBlob.type,
+      data: data
+    };
+
+    const res = await fetch(VIDEO_APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error || "Server upload failed.");
+
+    videoStatus.textContent = `✓ Uploaded successfully (${compressedSizeMB} MB) and logged to Media_Logs.`;
+  } catch (err) {
+    console.error(err);
+    videoStatus.textContent = "Upload failed: " + err.message;
+    alert("Upload failed: " + err.message);
+  } finally {
+    uploadVideoBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
